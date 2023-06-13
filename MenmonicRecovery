@@ -1,0 +1,164 @@
+import tkinter as tk
+from tkinter import filedialog
+import random
+import time
+import threading
+
+# Global variables
+word_list = []  # Placeholder for the BIP39 word list
+mnemonic_phrases = []  # Placeholder for generated mnemonic phrases
+valid_wallets = []  # Placeholder for valid wallets
+attempts = 0  # Counter for total attempts
+valid_wallets_count = 0  # Counter for valid wallets found
+balance = 0  # Accumulated balance for valid wallets
+
+# Recovery options
+threads_count = 10
+proxy_list = []  # Placeholder for the list of proxy servers
+output_directory = ""  # Placeholder for the output directory
+
+# Lock for thread synchronization
+lock = threading.Lock()
+
+def select_wordlist_file():
+    file_path = filedialog.askopenfilename(filetypes=[("Text Files", "*.txt")])
+    word_list_entry.delete(0, tk.END)
+    word_list_entry.insert(tk.END, file_path)
+
+def select_proxylist_file():
+    file_path = filedialog.askopenfilename(filetypes=[("Text Files", "*.txt")])
+    proxy_list_entry.delete(0, tk.END)
+    proxy_list_entry.insert(tk.END, file_path)
+
+def select_output_directory():
+    directory_path = filedialog.askdirectory()
+    output_directory_entry.delete(0, tk.END)
+    output_directory_entry.insert(tk.END, directory_path)
+
+def generate_mnemonic():
+    global word_list, mnemonic_phrases
+
+    # Check if there are enough valid words available
+    if len(word_list) < 12:
+        mnemonic_display.insert(tk.END, "Error: Not enough valid words in the word list.")
+        return
+
+    mnemonic = []
+    used_prefixes = set()
+
+    # Randomly select words for each position
+    for i in range(12):
+        valid_words = [word for word in word_list if len(word) >= 3 and word[:3] not in used_prefixes]
+
+        # Check if there are any valid words available
+        if len(valid_words) == 0:
+            mnemonic_display.insert(tk.END, "Error: No valid words available for selection.")
+            return
+
+        word = random.choice(valid_words)
+        mnemonic.append(word)
+        used_prefixes.add(word[:3])
+
+    mnemonic_phrases.append(mnemonic)
+    mnemonic_display.insert(tk.END, " ".join(mnemonic) + "\n")
+
+
+def start_recovery():
+    global mnemonic_phrases, attempts, valid_wallets_count, balance
+
+    def check_wallets():
+        global attempts, valid_wallets_count, balance
+
+        while mnemonic_phrases:
+            with lock:
+                mnemonic = mnemonic_phrases.pop(0)
+
+            # Placeholder logic for checking wallet validity
+            # Replace with your actual implementation
+            # For example, you can make network requests to check the wallets
+
+            # Simulating a delay of 5 seconds per attempt
+            time.sleep(5)
+
+            # Placeholder logic for determining wallet validity and balance
+            # Replace with your actual implementation
+            valid = random.choice([True, False])
+            if valid:
+                balance += random.randint(1, 1000)  # Example balance calculation
+                valid_wallets_count += 1
+                valid_wallets.append((mnemonic, balance))
+                save_wallet(mnemonic, balance)
+
+            with lock:
+                attempts += 1
+
+            # Update the counters on the GUI
+            attempts_counter.config(text=str(attempts))
+            valid_wallets_counter.config(text=str(valid_wallets_count))
+            balance_counter.config(text=str(balance))
+
+    # Start the recovery process with multiple threads
+    for _ in range(threads_count):
+        thread = threading.Thread(target=check_wallets)
+        thread.start()
+
+def save_wallet(mnemonic, balance):
+    global output_directory
+    if output_directory:
+        file_path = output_directory + "/" + "_".join(mnemonic) + ".txt"
+        with open(file_path, "w") as file:
+            file.write("Mnemonic: " + " ".join(mnemonic) + "\n")
+            file.write("Balance: " + str(balance) + "\n")
+
+# Create the GUI window
+window = tk.Tk()
+window.title("Wallet Recovery")
+
+# Define the GUI elements and layout
+frame = tk.Frame(window)
+frame.pack(pady=20)
+
+word_list_entry = tk.Entry(frame, width=50)
+word_list_entry.grid(row=0, column=0, padx=5)
+
+word_list_button = tk.Button(frame, text="Select Wordlist", command=select_wordlist_file)
+word_list_button.grid(row=0, column=1, padx=5)
+
+proxy_list_entry = tk.Entry(frame, width=50)
+proxy_list_entry.grid(row=1, column=0, padx=5)
+
+proxy_list_button = tk.Button(frame, text="Select Proxy List", command=select_proxylist_file)
+proxy_list_button.grid(row=1, column=1, padx=5)
+
+output_directory_entry = tk.Entry(frame, width=50)
+output_directory_entry.grid(row=2, column=0, padx=5)
+
+output_directory_button = tk.Button(frame, text="Select Output Directory", command=select_output_directory)
+output_directory_button.grid(row=2, column=1, padx=5)
+
+generate_button = tk.Button(frame, text="Generate Mnemonic", command=generate_mnemonic)
+generate_button.grid(row=3, column=0, pady=5)
+
+start_button = tk.Button(frame, text="Start Recovery", command=start_recovery)
+start_button.grid(row=3, column=1, pady=5)
+
+mnemonic_display = tk.Text(window, height=10, width=50)
+mnemonic_display.pack(pady=20)
+
+attempts_label = tk.Label(window, text="Attempts:")
+attempts_label.pack()
+attempts_counter = tk.Label(window, text="0")
+attempts_counter.pack()
+
+valid_wallets_label = tk.Label(window, text="Valid Wallets:")
+valid_wallets_label.pack()
+valid_wallets_counter = tk.Label(window, text="0")
+valid_wallets_counter.pack()
+
+balance_label = tk.Label(window, text="Balance:")
+balance_label.pack()
+balance_counter = tk.Label(window, text="0")
+balance_counter.pack()
+
+# Update the GUI window
+window.mainloop()
